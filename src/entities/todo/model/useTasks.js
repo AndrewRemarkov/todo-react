@@ -38,31 +38,20 @@ const tasksReducer = (state, action) => {
 const useTasks = () => {
   const [tasks, dispatch] = useReducer(tasksReducer, [])
 
-  const [newTaskTitle, setNewTaskTitle] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [disappearingTaskId, setDisappearingTaskId] = useState(null)
   const [appearingTaskId, setAppearingTaskId] = useState(null)
 
   const newTaskInputRef = useRef(null)
 
-  const addTask = useCallback((title) => {
-    const newTask = {
-      title,
-      isDone: false,
-    }
+  const deleteAllTasks = useCallback(() => {
+    const isConfirmed = confirm('Are you sure you want to delete all?')
 
-    tasksAPI.add(newTask)
-      .then((addedTask) => {
-        dispatch({ type: 'ADD', task: addedTask })
-        setNewTaskTitle('')
-        setSearchQuery('')
-        newTaskInputRef.current.focus()
-        setAppearingTaskId(addedTask.id)
-        setTimeout(() => {
-          setAppearingTaskId(null)
-        }, 400)
-      })
-  }, [])
+    if (isConfirmed) {
+      tasksAPI.deleteAll(tasks)
+        .then(() => dispatch({ type: 'DELETE_ALL' }))
+    }
+  }, [tasks])
 
   const deleteTask = useCallback((taskId) => {
     tasksAPI.delete(taskId)
@@ -75,15 +64,6 @@ const useTasks = () => {
       })
   }, [])
 
-  const deleteAllTasks = useCallback(() => {
-    const isConfirm = confirm('Are you sure you want to delete all tasks?')
-
-    if (isConfirm) {
-      tasksAPI.deleteAll(tasks)
-        .then(() => dispatch({ type: 'DELETE_ALL' }))
-    }
-  }, [tasks])
-
   const toggleTaskComplete = useCallback((taskId, isDone) => {
     tasksAPI.toggleComplete(taskId, isDone)
       .then(() => {
@@ -91,11 +71,31 @@ const useTasks = () => {
       })
   }, [])
 
+  const addTask = useCallback((title, callbackAfterAdding) => {
+    const newTask = {
+      title,
+      isDone: false,
+    }
+
+    tasksAPI.add(newTask)
+      .then((addedTask) => {
+        dispatch({ type: 'ADD', task: addedTask })
+        callbackAfterAdding()
+        setSearchQuery('')
+        newTaskInputRef.current.focus()
+        setAppearingTaskId(addedTask.id)
+        setTimeout(() => {
+          setAppearingTaskId(null)
+        }, 400)
+      })
+  }, [])
+
   useEffect(() => {
     newTaskInputRef.current.focus()
 
-    tasksAPI.getAll()
-      .then((serverTasks) => dispatch({ type: 'SET_ALL', tasks: serverTasks }))
+    tasksAPI.getAll().then((serverTasks) => {
+      dispatch({ type: 'SET_ALL', tasks: serverTasks })
+    })
   }, [])
 
   const filteredTasks = useMemo(() => {
@@ -112,8 +112,6 @@ const useTasks = () => {
     deleteTask,
     deleteAllTasks,
     toggleTaskComplete,
-    newTaskTitle,
-    setNewTaskTitle,
     searchQuery,
     setSearchQuery,
     newTaskInputRef,
